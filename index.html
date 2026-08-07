@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SicuroPass - Privacy Toolkit</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1 class="main-title">🔒 SicuroPass</h1>
+            <p class="sub-title">Check your password strength and see if it's been exposed in a data breach.</p>
+        </header>
+
+        <!-- NAVIGATION -->
+        <nav class="nav-buttons">
+            <button class="nav-btn active" data-tab="strength">🔐 Strength Test</button>
+            <button class="nav-btn" data-tab="breach">⚠️ Breach Check</button>
+        </nav>
+
+        <!-- CONTENT CARDS -->
+        <div class="glass-card">
+
+            <!-- TAB 1: Password Strength Tester -->
+            <section id="strength" class="section active">
+                <h2>🔐 Password Strength Tester</h2>
+                <p class="desc">Type a password to see how secure it is.</p>
+
+                <input type="password" id="passwordInput" placeholder="Enter a password..." autocomplete="off" />
+
+                <div class="meter-container">
+                    <div class="meter-bar" id="meterBar"></div>
+                </div>
+
+                <div class="result-box" id="strengthResult">
+                    <span class="placeholder">Your password strength will appear here.</span>
+                </div>
+
+                <button class="btn-primary" id="generateBtn">🔄 Generate Strong Password</button>
+            </section>
+
+            <!-- TAB 2: Breach Checker -->
+            <section id="breach" class="section">
+                <h2>⚠️ Breach Checker</h2>
+                <p class="desc">Check if your password has been exposed in a data breach.</p>
+
+                <input type="password" id="breachInput" placeholder="Enter a password to check..." autocomplete="off" />
+
+                <button class="btn-primary" id="breachBtn">🔍 Check for Breaches</button>
+
+                <div class="result-box" id="breachResult">
+                    <span class="placeholder">Enter a password and click "Check for Breaches".</span>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- FOOTER -->
+        <footer>
+            <p>⚡ 100% runs in your browser. No data is stored or shared.</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/script.js"></script>
+
+</body>
+  </html>
