@@ -2,12 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="google-site-verification" content="M2R8E8grICJUEtGTqyNmbveeFayEVlIVlcyS5evuQWE" />
-    <meta name="msvalidate.01" content="8239F2C7CE14C3E4767513BE6CB3CBCC" />
+    <meta name="google-site-verification" content="YOUR-GOOGLE-CODE" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SicuroPass - Privacy Toolkit</title>
     <meta name="description" content="Check your password strength and see if it's been exposed in data breaches. Free privacy toolkit." />
-    <link rel="sitemap" type="application/xml" title="Sitemap" href="https://sicuropass.github.io/sitemap.xml" />
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
@@ -27,7 +25,10 @@
         <!-- NAVIGATION -->
         <nav class="nav-buttons">
             <button class="nav-btn active" data-tab="strength">🔐 Strength Test</button>
-            <button class="nav-btn" data-tab="breach">⚠️ Breach Check</button>
+            <button class="nav-btn" data-tab="breach">
+                ⚠️ Breach Check
+                <span id="breachBadge" class="badge-hidden">●</span>
+            </button>
         </nav>
 
         <!-- CONTENT CARDS -->
@@ -48,7 +49,16 @@
                     <span class="placeholder">Your password strength will appear here.</span>
                 </div>
 
-                <button class="btn-primary" id="generateBtn">🔄 Generate Strong Password</button>
+                <button class="btn-primary" id="generateBtn">🔄 Generate Strong Passwords</button>
+                
+                <!-- Password Suggestions -->
+                <div id="suggestionsContainer" class="suggestions-hidden">
+                    <p class="suggestions-label">Choose one of these strong passwords:</p>
+                    <div class="suggestion-list" id="suggestionList">
+                        <!-- 3 passwords will appear here -->
+                    </div>
+                    <button class="btn-secondary" id="copySelectedBtn">📋 Copy Selected</button>
+                </div>
             </section>
 
             <!-- TAB 2: Breach Checker -->
@@ -77,4 +87,4 @@
     <script src="js/script.js"></script>
 
 </body>
-  </html>
+</html>
