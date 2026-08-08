@@ -29,6 +29,7 @@
                 ⚠️ Breach Check
                 <span id="breachBadge" class="badge-hidden">●</span>
             </button>
+            <button class="nav-btn" data-tab="fingerprint">🖥️ Fingerprint</button>
         </nav>
 
         <!-- CONTENT CARDS -->
@@ -73,6 +74,18 @@
                 <div class="result-box" id="breachResult">
                     <span class="placeholder">Enter a password and click "Check for Breaches".</span>
                 </div>
+            </section>
+
+            <!-- TAB 3: Digital Fingerprint -->
+            <section id="fingerprint" class="section">
+                <h2>🖥️ Your Digital Fingerprint</h2>
+                <p class="desc">This is what every website can see about you.</p>
+
+                <div id="fingerprintResult" class="fingerprint-grid">
+                    <span class="placeholder">Loading your fingerprint...</span>
+                </div>
+
+                <button class="btn-secondary" id="refreshFingerprint">🔄 Refresh</button>
             </section>
 
         </div>
