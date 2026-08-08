@@ -375,3 +375,65 @@ footer {
     opacity: 0.3;
     cursor: not-allowed;
 }
+/* ===== FINGERPRINT GRID ===== */
+.fingerprint-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    text-align: left;
+    padding: 4px 0;
+}
+
+.fingerprint-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 14px;
+}
+
+.fingerprint-item .label {
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 400;
+}
+
+.fingerprint-item .value {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    text-align: right;
+    word-break: break-all;
+    max-width: 60%;
+}
+
+.fingerprint-item .value.na {
+    color: rgba(255, 255, 255, 0.3);
+    font-style: italic;
+}
+
+.fingerprint-note {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+    .fingerprint-grid {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    
+    .fingerprint-item {
+        font-size: 13px;
+        padding: 6px 0;
+    }
+    
+    .fingerprint-item .value {
+        max-width: 50%;
+    }
+}
