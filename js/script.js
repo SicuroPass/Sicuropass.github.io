@@ -4,7 +4,8 @@
 const navBtns = document.querySelectorAll('.nav-btn');
 const sections = {
     strength: document.getElementById('strength'),
-    breach: document.getElementById('breach')
+    breach: document.getElementById('breach'),
+    fingerprint: document.getElementById('fingerprint')
 };
 
 navBtns.forEach(btn => {
@@ -16,6 +17,11 @@ navBtns.forEach(btn => {
         Object.keys(sections).forEach(key => {
             sections[key].classList.toggle('active', key === tab);
         });
+
+        // Load fingerprint when tab is opened
+        if (tab === 'fingerprint') {
+            loadFingerprint();
+        }
     });
 });
 
@@ -46,7 +52,6 @@ passwordInput.addEventListener('input', () => {
     meterBar.style.background = result.color;
     strengthResult.innerHTML = `<strong style="color:${result.color}">${result.label}</strong> – ${result.details}`;
     
-    // Auto-check breach if password is strong
     if (result.score >= 50) {
         checkBreachAuto(password);
     }
@@ -98,7 +103,6 @@ generateBtn.addEventListener('click', () => {
         passwords.push(generatePassword(16));
     }
     
-    // Display suggestions
     suggestionList.innerHTML = '';
     passwords.forEach((pwd, index) => {
         const div = document.createElement('div');
@@ -109,7 +113,6 @@ generateBtn.addEventListener('click', () => {
         `;
         div.dataset.password = pwd;
         div.addEventListener('click', () => {
-            // Remove previous selection
             document.querySelectorAll('.suggestion-item').forEach(el => el.classList.remove('selected'));
             div.classList.add('selected');
             selectedPassword = pwd;
@@ -171,9 +174,6 @@ breachBtn.addEventListener('click', async () => {
     await checkBreach(password, breachResult, breachBadge);
 });
 
-// ============================================================
-// AUTO BREACH CHECK (for Strength Tester)
-// ============================================================
 async function checkBreachAuto(password) {
     const result = await performBreachCheck(password);
     if (result.found) {
@@ -184,9 +184,6 @@ async function checkBreachAuto(password) {
     }
 }
 
-// ============================================================
-// PERFORM BREACH CHECK (Shared Logic)
-// ============================================================
 async function performBreachCheck(password) {
     try {
         const hash = await sha1(password);
@@ -217,9 +214,6 @@ async function performBreachCheck(password) {
     }
 }
 
-// ============================================================
-// BREACH CHECK (for the Breach Tab)
-// ============================================================
 async function checkBreach(password, resultElement, badgeElement) {
     resultElement.innerHTML = `<span style="color:rgba(255,255,255,0.5)">🔍 Searching breach database...</span>`;
     breachBtn.disabled = true;
@@ -249,9 +243,6 @@ async function checkBreach(password, resultElement, badgeElement) {
     breachBtn.textContent = '🔍 Check for Breaches';
 }
 
-// ============================================================
-// BADGE CONTROL
-// ============================================================
 function showBadge(show, badgeElement = breachBadge) {
     if (show) {
         badgeElement.className = 'badge-visible';
@@ -260,9 +251,6 @@ function showBadge(show, badgeElement = breachBadge) {
     }
 }
 
-// ============================================================
-// SHA-1 HASH FUNCTION
-// ============================================================
 async function sha1(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-1', msgBuffer);
@@ -270,9 +258,6 @@ async function sha1(message) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// ============================================================
-// ENTER KEY SUPPORT
-// ============================================================
 breachInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') breachBtn.click();
 });
@@ -280,5 +265,119 @@ breachInput.addEventListener('keydown', (e) => {
 passwordInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') generateBtn.click();
 });
+
+// ============================================================
+// DIGITAL FINGERPRINT
+// ============================================================
+const fingerprintResult = document.getElementById('fingerprintResult');
+const refreshFingerprint = document.getElementById('refreshFingerprint');
+
+async function loadFingerprint() {
+    fingerprintResult.innerHTML = `<span class="placeholder">🔄 Loading your fingerprint...</span>`;
+    
+    // Get browser data (always works)
+    const browserData = getBrowserFingerprint();
+    
+    // Try to get IP geolocation (may be blocked)
+    const geoData = await getGeoLocation();
+    
+    // Combine and display
+    displayFingerprint(browserData, geoData);
+}
+
+function getBrowserFingerprint() {
+    const ua = navigator.userAgent;
+    let os = 'Unknown';
+    let browser = 'Unknown';
+    
+    // Detect OS
+    if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('Mac OS')) os = 'macOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    
+    // Detect Browser
+    if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+    else if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+    else if (ua.includes('Edg')) browser = 'Edge';
+    
+    return {
+        os: os,
+        browser: browser,
+        screen: `${screen.width} × ${screen.height}`,
+        colorDepth: `${screen.colorDepth}-bit`,
+        language: navigator.language,
+        device: /Mobi|Android|iPhone|iPad|iPod/i.test(ua) ? 'Mobile' : 'Desktop'
+    };
+}
+
+async function getGeoLocation() {
+    try {
+        // Using free ip-api.com (no key required)
+        const response = await fetch('http://ip-api.com/json/');
+        if (!response.ok) throw new Error('API failed');
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            return {
+                ip: data.query,
+                country: data.country,
+                city: data.city,
+                region: data.regionName,
+                isp: data.isp,
+                timezone: data.timezone,
+                lat: data.lat,
+                lon: data.lon
+            };
+        } else {
+            return null;
+        }
+    } catch (error) {
+        console.log('Geolocation API failed:', error);
+        return null;
+    }
+}
+
+function displayFingerprint(browserData, geoData) {
+    let html = '';
+    
+    // Browser Data (always works)
+    html += `
+        <div class="fingerprint-item"><span class="label">Operating System</span><span class="value">${browserData.os}</span></div>
+        <div class="fingerprint-item"><span class="label">Browser</span><span class="value">${browserData.browser}</span></div>
+        <div class="fingerprint-item"><span class="label">Screen Resolution</span><span class="value">${browserData.screen}</span></div>
+        <div class="fingerprint-item"><span class="label">Color Depth</span><span class="value">${browserData.colorDepth}</span></div>
+        <div class="fingerprint-item"><span class="label">Language</span><span class="value">${browserData.language}</span></div>
+        <div class="fingerprint-item"><span class="label">Device Type</span><span class="value">${browserData.device}</span></div>
+    `;
+    
+    // Geolocation Data (if available)
+    if (geoData) {
+        html += `
+            <div class="fingerprint-item"><span class="label">IP Address</span><span class="value">${geoData.ip}</span></div>
+            <div class="fingerprint-item"><span class="label">Country</span><span class="value">${geoData.country}</span></div>
+            <div class="fingerprint-item"><span class="label">City</span><span class="value">${geoData.city}</span></div>
+            <div class="fingerprint-item"><span class="label">ISP</span><span class="value">${geoData.isp}</span></div>
+            <div class="fingerprint-item"><span class="label">Time Zone</span><span class="value">${geoData.timezone}</span></div>
+        `;
+    } else {
+        html += `
+            <div class="fingerprint-item"><span class="label">IP Geolocation</span><span class="value na">Not available in your region</span></div>
+        `;
+    }
+    
+    // Note about privacy
+    html += `
+        <div class="fingerprint-note">
+            ⚠️ This is what every website can see about you. Use a VPN or privacy tools to protect your data.
+        </div>
+    `;
+    
+    fingerprintResult.innerHTML = html;
+}
+
+refreshFingerprint.addEventListener('click', loadFingerprint);
 
 console.log('🔒 SicuroPass loaded successfully!');
