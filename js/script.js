@@ -267,7 +267,7 @@ passwordInput.addEventListener('keydown', (e) => {
 });
 
 // ============================================================
-// DIGITAL FINGERPRINT
+// DIGITAL FINGERPRINT (UPDATED)
 // ============================================================
 const fingerprintResult = document.getElementById('fingerprintResult');
 const refreshFingerprint = document.getElementById('refreshFingerprint');
@@ -290,26 +290,54 @@ function getBrowserFingerprint() {
     let os = 'Unknown';
     let browser = 'Unknown';
     
-    // Detect OS
-    if (ua.includes('Windows')) os = 'Windows';
-    else if (ua.includes('Mac OS')) os = 'macOS';
-    else if (ua.includes('Linux')) os = 'Linux';
-    else if (ua.includes('Android')) os = 'Android';
-    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    // ===== OS DETECTION (Improved) =====
+    if (ua.includes('Android')) {
+        os = 'Android';
+    } else if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iPod')) {
+        os = 'iOS';
+    } else if (ua.includes('Windows')) {
+        os = 'Windows';
+    } else if (ua.includes('Mac OS')) {
+        os = 'macOS';
+    } else if (ua.includes('Linux')) {
+        os = 'Linux (Desktop)';
+    } else if (ua.includes('CrOS')) {
+        os = 'Chrome OS';
+    }
     
-    // Detect Browser
-    if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
-    else if (ua.includes('Firefox')) browser = 'Firefox';
-    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
-    else if (ua.includes('Edg')) browser = 'Edge';
+    // ===== BROWSER DETECTION (Improved) =====
+    if (ua.includes('OPR') || ua.includes('Opera')) {
+        browser = 'Opera';
+    } else if (ua.includes('Edg')) {
+        browser = 'Edge';
+    } else if (ua.includes('Firefox')) {
+        browser = 'Firefox';
+    } else if (ua.includes('SamsungBrowser')) {
+        browser = 'Samsung Internet';
+    } else if (ua.includes('Chrome')) {
+        browser = 'Chrome';
+    } else if (ua.includes('Safari')) {
+        browser = 'Safari';
+    }
+    
+    // ===== DEVICE TYPE =====
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|BlackBerry|IEMobile|WPDesktop/i.test(ua);
+    const device = isMobile ? 'Mobile' : 'Desktop';
+    
+    // ===== SCREEN INFO =====
+    const screenInfo = `${screen.width} × ${screen.height}`;
+    const colorDepth = `${screen.colorDepth}-bit`;
+    
+    // ===== LANGUAGE =====
+    const language = navigator.language || navigator.languages?.[0] || 'Unknown';
     
     return {
         os: os,
         browser: browser,
-        screen: `${screen.width} × ${screen.height}`,
-        colorDepth: `${screen.colorDepth}-bit`,
-        language: navigator.language,
-        device: /Mobi|Android|iPhone|iPad|iPod/i.test(ua) ? 'Mobile' : 'Desktop'
+        screen: screenInfo,
+        colorDepth: colorDepth,
+        language: language,
+        device: device
     };
 }
 
@@ -343,32 +371,39 @@ async function getGeoLocation() {
 function displayFingerprint(browserData, geoData) {
     let html = '';
     
-    // Browser Data (always works)
+    // ===== BROWSER DATA (Always works) =====
     html += `
         <div class="fingerprint-item"><span class="label">Operating System</span><span class="value">${browserData.os}</span></div>
         <div class="fingerprint-item"><span class="label">Browser</span><span class="value">${browserData.browser}</span></div>
+        <div class="fingerprint-item"><span class="label">Device Type</span><span class="value">${browserData.device}</span></div>
         <div class="fingerprint-item"><span class="label">Screen Resolution</span><span class="value">${browserData.screen}</span></div>
         <div class="fingerprint-item"><span class="label">Color Depth</span><span class="value">${browserData.colorDepth}</span></div>
         <div class="fingerprint-item"><span class="label">Language</span><span class="value">${browserData.language}</span></div>
-        <div class="fingerprint-item"><span class="label">Device Type</span><span class="value">${browserData.device}</span></div>
     `;
     
-    // Geolocation Data (if available)
+    // ===== GEOLOCATION DATA (If available) =====
     if (geoData) {
         html += `
             <div class="fingerprint-item"><span class="label">IP Address</span><span class="value">${geoData.ip}</span></div>
             <div class="fingerprint-item"><span class="label">Country</span><span class="value">${geoData.country}</span></div>
             <div class="fingerprint-item"><span class="label">City</span><span class="value">${geoData.city}</span></div>
+            <div class="fingerprint-item"><span class="label">Region</span><span class="value">${geoData.region}</span></div>
             <div class="fingerprint-item"><span class="label">ISP</span><span class="value">${geoData.isp}</span></div>
             <div class="fingerprint-item"><span class="label">Time Zone</span><span class="value">${geoData.timezone}</span></div>
         `;
     } else {
+        // ===== CLEAN "NOT AVAILABLE" MESSAGE =====
         html += `
-            <div class="fingerprint-item"><span class="label">IP Geolocation</span><span class="value na">Not available in your region</span></div>
+            <div class="fingerprint-item" style="grid-column: 1 / -1; justify-content: center; padding: 16px 0; border-bottom: none;">
+                <span style="color: rgba(255,255,255,0.3); font-style: italic; text-align: center;">
+                    🌍 IP geolocation is not available in your region.<br>
+                    <span style="font-size: 12px;">Your browser data above still works.</span>
+                </span>
+            </div>
         `;
     }
     
-    // Note about privacy
+    // ===== PRIVACY NOTE =====
     html += `
         <div class="fingerprint-note">
             ⚠️ This is what every website can see about you. Use a VPN or privacy tools to protect your data.
