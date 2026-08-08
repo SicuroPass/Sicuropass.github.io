@@ -277,3 +277,101 @@ footer {
         font-size: 19px;
     }
 }
+/* ===== BADGE ===== */
+#breachBadge {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #f87171;
+    margin-left: 4px;
+    font-size: 0;
+    transition: all 0.3s ease;
+}
+
+#breachBadge.badge-hidden {
+    opacity: 0;
+    transform: scale(0);
+}
+
+#breachBadge.badge-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ===== SUGGESTIONS ===== */
+.suggestions-hidden {
+    display: none;
+}
+
+.suggestions-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    margin-top: 16px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.suggestion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #fff;
+}
+
+.suggestion-item:hover {
+    background: rgba(0, 240, 255, 0.08);
+    border-color: rgba(0, 240, 255, 0.2);
+}
+
+.suggestion-item.selected {
+    background: rgba(0, 240, 255, 0.12);
+    border-color: rgba(0, 240, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.05);
+}
+
+.suggestion-item .copy-hint {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== COPY BUTTON ===== */
+.btn-secondary {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
