@@ -5,7 +5,8 @@ const navBtns = document.querySelectorAll('.nav-btn');
 const sections = {
     strength: document.getElementById('strength'),
     breach: document.getElementById('breach'),
-    fingerprint: document.getElementById('fingerprint')
+    fingerprint: document.getElementById('fingerprint'),
+    username: document.getElementById('username')
 };
 
 navBtns.forEach(btn => {
@@ -267,7 +268,7 @@ passwordInput.addEventListener('keydown', (e) => {
 });
 
 // ============================================================
-// DIGITAL FINGERPRINT (UPDATED)
+// DIGITAL FINGERPRINT
 // ============================================================
 const fingerprintResult = document.getElementById('fingerprintResult');
 const refreshFingerprint = document.getElementById('refreshFingerprint');
@@ -275,13 +276,9 @@ const refreshFingerprint = document.getElementById('refreshFingerprint');
 async function loadFingerprint() {
     fingerprintResult.innerHTML = `<span class="placeholder">🔄 Loading your fingerprint...</span>`;
     
-    // Get browser data (always works)
     const browserData = getBrowserFingerprint();
-    
-    // Try to get IP geolocation (may be blocked)
     const geoData = await getGeoLocation();
     
-    // Combine and display
     displayFingerprint(browserData, geoData);
 }
 
@@ -290,7 +287,7 @@ function getBrowserFingerprint() {
     let os = 'Unknown';
     let browser = 'Unknown';
     
-    // ===== OS DETECTION (Improved) =====
+    // OS DETECTION
     if (ua.includes('Android')) {
         os = 'Android';
     } else if (ua.includes('iPhone') || ua.includes('iPad') || ua.includes('iPod')) {
@@ -305,7 +302,7 @@ function getBrowserFingerprint() {
         os = 'Chrome OS';
     }
     
-    // ===== BROWSER DETECTION (Improved) =====
+    // BROWSER DETECTION
     if (ua.includes('OPR') || ua.includes('Opera')) {
         browser = 'Opera';
     } else if (ua.includes('Edg')) {
@@ -320,30 +317,21 @@ function getBrowserFingerprint() {
         browser = 'Safari';
     }
     
-    // ===== DEVICE TYPE =====
     const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|BlackBerry|IEMobile|WPDesktop/i.test(ua);
     const device = isMobile ? 'Mobile' : 'Desktop';
-    
-    // ===== SCREEN INFO =====
-    const screenInfo = `${screen.width} × ${screen.height}`;
-    const colorDepth = `${screen.colorDepth}-bit`;
-    
-    // ===== LANGUAGE =====
-    const language = navigator.language || navigator.languages?.[0] || 'Unknown';
     
     return {
         os: os,
         browser: browser,
-        screen: screenInfo,
-        colorDepth: colorDepth,
-        language: language,
+        screen: `${screen.width} × ${screen.height}`,
+        colorDepth: `${screen.colorDepth}-bit`,
+        language: navigator.language || navigator.languages?.[0] || 'Unknown',
         device: device
     };
 }
 
 async function getGeoLocation() {
     try {
-        // Using free ip-api.com (no key required)
         const response = await fetch('http://ip-api.com/json/');
         if (!response.ok) throw new Error('API failed');
         const data = await response.json();
@@ -371,7 +359,6 @@ async function getGeoLocation() {
 function displayFingerprint(browserData, geoData) {
     let html = '';
     
-    // ===== BROWSER DATA (Always works) =====
     html += `
         <div class="fingerprint-item"><span class="label">Operating System</span><span class="value">${browserData.os}</span></div>
         <div class="fingerprint-item"><span class="label">Browser</span><span class="value">${browserData.browser}</span></div>
@@ -381,7 +368,6 @@ function displayFingerprint(browserData, geoData) {
         <div class="fingerprint-item"><span class="label">Language</span><span class="value">${browserData.language}</span></div>
     `;
     
-    // ===== GEOLOCATION DATA (If available) =====
     if (geoData) {
         html += `
             <div class="fingerprint-item"><span class="label">IP Address</span><span class="value">${geoData.ip}</span></div>
@@ -392,7 +378,6 @@ function displayFingerprint(browserData, geoData) {
             <div class="fingerprint-item"><span class="label">Time Zone</span><span class="value">${geoData.timezone}</span></div>
         `;
     } else {
-        // ===== CLEAN "NOT AVAILABLE" MESSAGE =====
         html += `
             <div class="fingerprint-item" style="grid-column: 1 / -1; justify-content: center; padding: 16px 0; border-bottom: none;">
                 <span style="color: rgba(255,255,255,0.3); font-style: italic; text-align: center;">
@@ -403,7 +388,6 @@ function displayFingerprint(browserData, geoData) {
         `;
     }
     
-    // ===== PRIVACY NOTE =====
     html += `
         <div class="fingerprint-note">
             ⚠️ This is what every website can see about you. Use a VPN or privacy tools to protect your data.
@@ -414,5 +398,164 @@ function displayFingerprint(browserData, geoData) {
 }
 
 refreshFingerprint.addEventListener('click', loadFingerprint);
+
+// ============================================================
+// USERNAME SEARCH
+// ============================================================
+const usernameInput = document.getElementById('usernameInput');
+const usernameBtn = document.getElementById('usernameBtn');
+const usernameResult = document.getElementById('usernameResult');
+
+usernameBtn.addEventListener('click', async () => {
+    const username = usernameInput.value.trim();
+    if (!username) {
+        usernameResult.innerHTML = `<span style="color:#f87171">⚠️ Please enter a username to search.</span>`;
+        return;
+    }
+
+    usernameBtn.disabled = true;
+    usernameBtn.textContent = '⏳ Searching...';
+    usernameResult.innerHTML = `<span style="color:rgba(255,255,255,0.5)">🔍 Searching ${username} across platforms...</span>`;
+
+    const results = await searchUsername(username);
+    displayUsernameResults(results, username);
+
+    usernameBtn.disabled = false;
+    usernameBtn.textContent = '🔍 Search';
+});
+
+async function searchUsername(username) {
+    const results = [];
+
+    // 1. GITHUB
+    try {
+        const response = await fetch(`https://api.github.com/users/${username}`);
+        if (response.ok) {
+            results.push({ platform: 'GitHub', found: true, url: `https://github.com/${username}` });
+        } else if (response.status === 404) {
+            results.push({ platform: 'GitHub', found: false });
+        } else {
+            results.push({ platform: 'GitHub', found: false, error: 'API limit' });
+        }
+    } catch {
+        results.push({ platform: 'GitHub', found: false, error: 'Failed to fetch' });
+    }
+
+    // 2. REDDIT
+    try {
+        const response = await fetch(`https://www.reddit.com/user/${username}/about.json`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.data && data.data.name) {
+                results.push({ platform: 'Reddit', found: true, url: `https://reddit.com/user/${username}` });
+            } else {
+                results.push({ platform: 'Reddit', found: false });
+            }
+        } else if (response.status === 404) {
+            results.push({ platform: 'Reddit', found: false });
+        } else {
+            results.push({ platform: 'Reddit', found: false, error: 'API limit' });
+        }
+    } catch {
+        results.push({ platform: 'Reddit', found: false, error: 'Failed to fetch' });
+    }
+
+    // 3. YOUTUBE
+    try {
+        const response = await fetch(`https://www.youtube.com/@${username}`);
+        if (response.ok) {
+            const html = await response.text();
+            if (html.includes('This channel doesn\'t exist') || html.includes('This page is not available')) {
+                results.push({ platform: 'YouTube', found: false });
+            } else {
+                results.push({ platform: 'YouTube', found: true, url: `https://youtube.com/@${username}` });
+            }
+        } else {
+            results.push({ platform: 'YouTube', found: false });
+        }
+    } catch {
+        results.push({ platform: 'YouTube', found: false, error: 'Failed to fetch' });
+    }
+
+    // 4. INSTAGRAM (Not possible from frontend)
+    results.push({
+        platform: 'Instagram',
+        found: false,
+        error: '🔒 Requires backend API'
+    });
+
+    // 5. FACEBOOK (Not possible from frontend)
+    results.push({
+        platform: 'Facebook',
+        found: false,
+        error: '🔒 Requires backend API'
+    });
+
+    return results;
+}
+
+function displayUsernameResults(results, username) {
+    let html = `
+        <div style="margin-bottom: 12px; font-weight: 500;">Results for "<strong>${username}</strong>":</div>
+    `;
+
+    let foundCount = 0;
+
+    results.forEach(result => {
+        if (result.found) {
+            foundCount++;
+            html += `
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: #4ade80;">✅ ${result.platform}</span>
+                    <span style="color: rgba(255,255,255,0.5); font-size: 13px;">
+                        <a href="${result.url}" target="_blank" style="color: #00f0ff; text-decoration: none;">${result.url}</a>
+                    </span>
+                </div>
+            `;
+        } else if (result.error && result.error.includes('Requires backend')) {
+            html += `
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: #fbbf24;">⚠️ ${result.platform}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 12px;">${result.error}</span>
+                </div>
+            `;
+        } else if (result.error) {
+            html += `
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: #fbbf24;">⚠️ ${result.platform}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 13px;">${result.error}</span>
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                    <span style="color: #f87171;">❌ ${result.platform}</span>
+                    <span style="color: rgba(255,255,255,0.3); font-size: 13px;">Not found</span>
+                </div>
+            `;
+        }
+    });
+
+    if (foundCount === 0) {
+        html += `
+            <div style="margin-top: 16px; padding: 12px 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); text-align: center; color: rgba(255,255,255,0.4); font-size: 13px;">
+                😕 No accounts found for "${username}" on supported platforms.
+                <br><span style="font-size: 12px;">Instagram and Facebook require a backend server.</span>
+            </div>
+        `;
+    } else {
+        html += `
+            <div style="margin-top: 16px; padding: 12px 16px; background: rgba(0,240,255,0.05); border-radius: 12px; border: 1px solid rgba(0,240,255,0.1); text-align: center; color: rgba(255,255,255,0.6); font-size: 13px;">
+                ✅ Found ${foundCount} account${foundCount > 1 ? 's' : ''} for "${username}".
+            </div>
+        `;
+    }
+
+    usernameResult.innerHTML = html;
+}
+
+usernameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') usernameBtn.click();
+});
 
 console.log('🔒 SicuroPass loaded successfully!');
