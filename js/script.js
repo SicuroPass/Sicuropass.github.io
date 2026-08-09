@@ -47,6 +47,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var meterBar = document.getElementById('meterBar');
     var strengthResult = document.getElementById('strengthResult');
     var generateBtn = document.getElementById('generateBtn');
+    var suggestionsContainer = document.getElementById('suggestionsContainer');
+    var suggestionList = document.getElementById('suggestionList');
+    var copySelectedBtn = document.getElementById('copySelectedBtn');
+    var selectedPassword = '';
 
     if (passwordInput) {
         passwordInput.addEventListener('input', function() {
@@ -54,6 +58,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!password) {
                 meterBar.style.width = '0%';
                 strengthResult.innerHTML = 'Your password strength will appear here.';
+                if (suggestionsContainer) {
+                    suggestionsContainer.classList.add('suggestions-hidden');
+                }
                 return;
             }
 
@@ -94,52 +101,172 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // GENERATE PASSWORD
+    // GENERATE 3 PASSWORDS
     // ============================================================
     if (generateBtn) {
         generateBtn.addEventListener('click', function() {
-            var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_-+=';
-            var password = '';
-            for (var i = 0; i < 16; i++) {
-                password += chars.charAt(Math.floor(Math.random() * chars.length));
+            var passwords = [];
+            for (var i = 0; i < 3; i++) {
+                passwords.push(generatePassword(16));
             }
-            passwordInput.value = password;
-            var evt = document.createEvent('Event');
-            evt.initEvent('input', true, true);
-            passwordInput.dispatchEvent(evt);
+            
+            if (suggestionList) {
+                suggestionList.innerHTML = '';
+                for (var j = 0; j < passwords.length; j++) {
+                    var pwd = passwords[j];
+                    var div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.innerHTML = '<span>' + pwd + '</span><span class="copy-hint">Click to select</span>';
+                    div.dataset.password = pwd;
+                    div.addEventListener('click', function() {
+                        var items = document.querySelectorAll('.suggestion-item');
+                        for (var k = 0; k < items.length; k++) {
+                            items[k].classList.remove('selected');
+                        }
+                        this.classList.add('selected');
+                        selectedPassword = this.dataset.password;
+                        if (copySelectedBtn) {
+                            copySelectedBtn.disabled = false;
+                            copySelectedBtn.textContent = '📋 Copy Selected';
+                        }
+                    });
+                    suggestionList.appendChild(div);
+                }
+                
+                if (suggestionsContainer) {
+                    suggestionsContainer.classList.remove('suggestions-hidden');
+                }
+                if (copySelectedBtn) {
+                    copySelectedBtn.disabled = true;
+                    copySelectedBtn.textContent = '📋 Select a password first';
+                }
+                selectedPassword = '';
+            }
+        });
+    }
+
+    function generatePassword(length) {
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_-+=';
+        var password = '';
+        for (var i = 0; i < length; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return password;
+    }
+
+    // ============================================================
+    // COPY TO CLIPBOARD
+    // ============================================================
+    if (copySelectedBtn) {
+        copySelectedBtn.addEventListener('click', function() {
+            if (!selectedPassword) return;
+            try {
+                navigator.clipboard.writeText(selectedPassword).then(function() {
+                    copySelectedBtn.textContent = '✅ Copied!';
+                    setTimeout(function() {
+                        copySelectedBtn.textContent = '📋 Copy Selected';
+                    }, 2000);
+                }).catch(function() {
+                    copySelectedBtn.textContent = '❌ Failed to copy';
+                    setTimeout(function() {
+                        copySelectedBtn.textContent = '📋 Copy Selected';
+                    }, 2000);
+                });
+            } catch (err) {
+                copySelectedBtn.textContent = '❌ Failed to copy';
+                setTimeout(function() {
+                    copySelectedBtn.textContent = '📋 Copy Selected';
+                }, 2000);
+            }
         });
     }
 
     // ============================================================
-    // BREACH CHECKER
+    // BREACH CHECKER (REAL API)
     // ============================================================
     var breachInput = document.getElementById('breachInput');
     var breachBtn = document.getElementById('breachBtn');
     var breachResult = document.getElementById('breachResult');
+    var breachBadge = document.getElementById('breachBadge');
 
     if (breachBtn) {
         breachBtn.addEventListener('click', function() {
             var password = breachInput.value.trim();
             if (!password) {
-                breachResult.innerHTML = 'Please enter a password to check.';
+                breachResult.innerHTML = '<span style="color:#f87171">⚠️ Please enter a password to check.</span>';
                 return;
             }
 
-            breachResult.innerHTML = 'Searching breach database...';
+            breachResult.innerHTML = '<span style="color:rgba(255,255,255,0.5)">🔍 Searching breach database...</span>';
             breachBtn.disabled = true;
-            breachBtn.textContent = 'Checking...';
+            breachBtn.textContent = '⏳ Checking...';
 
-            setTimeout(function() {
-                var random = Math.random();
-                if (random < 0.3) {
-                    breachResult.innerHTML = 'BREACH FOUND! This password appears in data breaches. You should never use it.';
+            performBreachCheck(password).then(function(result) {
+                if (result.error) {
+                    breachResult.innerHTML = '<span style="color:#f87171">⚠️ Error checking breach. Please try again.</span>';
+                } else if (result.found && result.count > 0) {
+                    breachResult.innerHTML = '<div style="color:#f87171; font-weight:600;">⚠️ BREACH FOUND!</div><div>This password has appeared <strong>' + result.count.toLocaleString() + '</strong> times in known data breaches.</div><div style="margin-top:8px; font-size:13px; color:rgba(255,255,255,0.6);">🔐 You should <strong>never</strong> use this password anywhere.</div>';
+                    showBadge(true);
                 } else {
-                    breachResult.innerHTML = 'No breaches found for this password. Still make sure it\'s strong and unique!';
+                    breachResult.innerHTML = '<div style="color:#4ade80; font-weight:600;">✅ No breaches found!</div><div>This password has not been exposed in any known data breaches.</div><div style="margin-top:8px; font-size:13px; color:rgba(255,255,255,0.6);">👍 Still make sure it\'s strong and unique!</div>';
+                    showBadge(false);
                 }
+
                 breachBtn.disabled = false;
-                breachBtn.textContent = 'Check for Breaches';
-            }, 1500);
+                breachBtn.textContent = '🔍 Check for Breaches';
+            });
         });
+    }
+
+    function performBreachCheck(password) {
+        return sha1(password).then(function(hash) {
+            var prefix = hash.substring(0, 5);
+            var suffix = hash.substring(5).toUpperCase();
+
+            return fetch('https://api.pwnedpasswords.com/range/' + prefix).then(function(response) {
+                if (!response.ok) throw new Error('API request failed');
+                return response.text();
+            }).then(function(data) {
+                var lines = data.split('\n');
+                var found = false;
+                var count = 0;
+
+                for (var i = 0; i < lines.length; i++) {
+                    if (lines[i].indexOf(suffix) !== -1) {
+                        var parts = lines[i].split(':');
+                        count = parseInt(parts[1]) || 0;
+                        found = true;
+                        break;
+                    }
+                }
+
+                return { found: found, count: count };
+            });
+        }).catch(function(error) {
+            console.error('Breach check error:', error);
+            return { found: false, count: 0, error: true };
+        });
+    }
+
+    function sha1(message) {
+        var msgBuffer = new TextEncoder().encode(message);
+        return crypto.subtle.digest('SHA-1', msgBuffer).then(function(hashBuffer) {
+            var hashArray = Array.from(new Uint8Array(hashBuffer));
+            var hashHex = '';
+            for (var i = 0; i < hashArray.length; i++) {
+                hashHex += hashArray[i].toString(16).padStart(2, '0');
+            }
+            return hashHex;
+        });
+    }
+
+    function showBadge(show) {
+        if (!breachBadge) return;
+        if (show) {
+            breachBadge.className = 'badge-visible';
+        } else {
+            breachBadge.className = 'badge-hidden';
+        }
     }
 
     // ============================================================
@@ -168,6 +295,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var isMobile = (ua.indexOf('Mobi') !== -1 || ua.indexOf('Android') !== -1 || ua.indexOf('iPhone') !== -1);
         var device = isMobile ? 'Mobile' : 'Desktop';
+
+        // Platform fix: Show "Android" instead of "Linux" for Android devices
+        var platform = navigator.platform || 'Unknown';
+        if (os === 'Android' && platform === 'Linux') {
+            platform = 'Android';
+        }
 
         // Get battery info (updates in background)
         if (navigator.getBattery) {
@@ -198,6 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         var html = '';
         html += '<div class="fingerprint-item"><span class="label">Operating System</span><span class="value">' + os + '</span></div>';
+        html += '<div class="fingerprint-item"><span class="label">Platform</span><span class="value">' + platform + '</span></div>';
         html += '<div class="fingerprint-item"><span class="label">Browser</span><span class="value">' + browser + '</span></div>';
         html += '<div class="fingerprint-item"><span class="label">Device Type</span><span class="value">' + device + '</span></div>';
         html += '<div class="fingerprint-item"><span class="label">Screen Resolution</span><span class="value">' + screen.width + ' × ' + screen.height + '</span></div>';
@@ -423,5 +557,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    console.log('SicuroPass loaded successfully');
+    console.log('✅ SicuroPass loaded successfully');
 });
