@@ -6,7 +6,8 @@ const sections = {
     strength: document.getElementById('strength'),
     breach: document.getElementById('breach'),
     fingerprint: document.getElementById('fingerprint'),
-    username: document.getElementById('username')
+    username: document.getElementById('username'),
+    privacy: document.getElementById('privacy')
 };
 
 navBtns.forEach(btn => {
@@ -19,9 +20,11 @@ navBtns.forEach(btn => {
             sections[key].classList.toggle('active', key === tab);
         });
 
-        // Load fingerprint when tab is opened
         if (tab === 'fingerprint') {
             loadFingerprint();
+        }
+        if (tab === 'privacy') {
+            loadPrivacyWarning();
         }
     });
 });
@@ -268,7 +271,7 @@ passwordInput.addEventListener('keydown', (e) => {
 });
 
 // ============================================================
-// DIGITAL FINGERPRINT
+// DIGITAL FINGERPRINT (EXPANDED)
 // ============================================================
 const fingerprintResult = document.getElementById('fingerprintResult');
 const refreshFingerprint = document.getElementById('refreshFingerprint');
@@ -320,14 +323,42 @@ function getBrowserFingerprint() {
     const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|BlackBerry|IEMobile|WPDesktop/i.test(ua);
     const device = isMobile ? 'Mobile' : 'Desktop';
     
+    // Fonts (partial list of common fonts)
+    const fonts = getInstalledFonts();
+    
     return {
         os: os,
         browser: browser,
         screen: `${screen.width} × ${screen.height}`,
         colorDepth: `${screen.colorDepth}-bit`,
         language: navigator.language || navigator.languages?.[0] || 'Unknown',
-        device: device
+        device: device,
+        fonts: fonts,
+        doNotTrack: navigator.doNotTrack || 'Not set',
+        cookiesEnabled: navigator.cookieEnabled ? 'Enabled' : 'Disabled',
+        hardwareConcurrency: navigator.hardwareConcurrency || 'Unknown',
+        deviceMemory: navigator.deviceMemory || 'Unknown'
     };
+}
+
+function getInstalledFonts() {
+    const baseFonts = ['Arial', 'Helvetica', 'Times New Roman', 'Courier New', 'Verdana', 'Georgia'];
+    const installed = [];
+    const testString = 'mmmmmmmmmmlli';
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    baseFonts.forEach(font => {
+        ctx.font = '72px "' + font + '", sans-serif';
+        const width = ctx.measureText(testString).width;
+        ctx.font = '72px sans-serif';
+        const fallbackWidth = ctx.measureText(testString).width;
+        if (width !== fallbackWidth) {
+            installed.push(font);
+        }
+    });
+    
+    return installed.length > 0 ? installed.join(', ') : 'None detected';
 }
 
 async function getGeoLocation() {
@@ -359,6 +390,7 @@ async function getGeoLocation() {
 function displayFingerprint(browserData, geoData) {
     let html = '';
     
+    // System Information
     html += `
         <div class="fingerprint-item"><span class="label">Operating System</span><span class="value">${browserData.os}</span></div>
         <div class="fingerprint-item"><span class="label">Browser</span><span class="value">${browserData.browser}</span></div>
@@ -366,6 +398,11 @@ function displayFingerprint(browserData, geoData) {
         <div class="fingerprint-item"><span class="label">Screen Resolution</span><span class="value">${browserData.screen}</span></div>
         <div class="fingerprint-item"><span class="label">Color Depth</span><span class="value">${browserData.colorDepth}</span></div>
         <div class="fingerprint-item"><span class="label">Language</span><span class="value">${browserData.language}</span></div>
+        <div class="fingerprint-item"><span class="label">Installed Fonts</span><span class="value">${browserData.fonts}</span></div>
+        <div class="fingerprint-item"><span class="label">Do Not Track</span><span class="value">${browserData.doNotTrack}</span></div>
+        <div class="fingerprint-item"><span class="label">Cookies</span><span class="value">${browserData.cookiesEnabled}</span></div>
+        <div class="fingerprint-item"><span class="label">CPU Cores</span><span class="value">${browserData.hardwareConcurrency}</span></div>
+        <div class="fingerprint-item"><span class="label">Device Memory</span><span class="value">${browserData.deviceMemory} GB</span></div>
     `;
     
     if (geoData) {
@@ -558,4 +595,126 @@ usernameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') usernameBtn.click();
 });
 
+// ============================================================
+// PRIVACY WARNING (NEW FEATURE)
+// ============================================================
+const privacyResult = document.getElementById('privacyResult');
+
+function loadPrivacyWarning() {
+    const ua = navigator.userAgent;
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|BlackBerry|IEMobile|WPDesktop/i.test(ua);
+    const language = navigator.language || navigator.languages?.[0] || 'Unknown';
+    const screenRes = `${screen.width} × ${screen.height}`;
+    const browser = getBrowserFingerprint().browser;
+    const os = getBrowserFingerprint().os;
+    
+    // Calculate risk level
+    let riskScore = 0;
+    const risks = [];
+    
+    // 1. Browser fingerprinting
+    riskScore += 20;
+    risks.push('Your browser sends a unique fingerprint to every website you visit');
+    
+    // 2. Device type
+    if (isMobile) {
+        riskScore += 10;
+        risks.push('Mobile devices share more location data than desktop computers');
+    }
+    
+    // 3. Language/region
+    if (language && !language.startsWith('en')) {
+        riskScore += 10;
+        risks.push('Your language reveals your geographic region to websites');
+    }
+    
+    // 4. Screen resolution
+    if (screenRes && screenRes !== '0 × 0') {
+        riskScore += 10;
+        risks.push('Your screen size can be used to identify your specific device model');
+    }
+    
+    // 5. Installed fonts
+    const fonts = getInstalledFonts();
+    if (fonts && fonts !== 'None detected' && fonts.split(',').length > 3) {
+        riskScore += 15;
+        risks.push('Your installed fonts create a unique fingerprint (like a digital DNA)');
+    }
+    
+    // 6. Do Not Track (if enabled)
+    if (navigator.doNotTrack !== '1') {
+        riskScore += 10;
+        risks.push('You have not enabled "Do Not Track" – advertisers can track you more easily');
+    }
+    
+    // 7. Cookies
+    if (navigator.cookieEnabled) {
+        riskScore += 10;
+        risks.push('Cookies are enabled – websites can store tracking data on your device');
+    }
+    
+    // Cap risk at 100
+    riskScore = Math.min(100, riskScore);
+    
+    // Determine risk level
+    let level, color, icon;
+    if (riskScore >= 80) { level = 'VERY HIGH'; color = '#f87171'; icon = '🔴'; }
+    else if (riskScore >= 60) { level = 'HIGH'; color = '#fbbf24'; icon = '🟠'; }
+    else if (riskScore >= 40) { level = 'MEDIUM'; color = '#fbbf24'; icon = '🟡'; }
+    else { level = 'LOW'; color = '#4ade80'; icon = '🟢'; }
+    
+    // Build HTML
+    let html = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 16px 20px; border-radius: 16px; border: 1px solid ${color}33;">
+                <span style="font-size: 24px; font-weight: 700;">${icon} Risk Level: <span style="color: ${color};">${level}</span></span>
+                <span style="font-size: 16px; color: rgba(255,255,255,0.4);">Score: ${riskScore}/100</span>
+            </div>
+        </div>
+    `;
+    
+    // Your fingerprint summary
+    html += `
+        <div style="margin-bottom: 16px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 6px;">YOUR FINGERPRINT SUMMARY</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 13px;">
+                <span>🖥️ ${browser} on ${os}</span>
+                <span>📱 ${isMobile ? 'Mobile' : 'Desktop'}</span>
+                <span>🌐 ${language}</span>
+                <span>📐 ${screenRes}</span>
+            </div>
+        </div>
+    `;
+    
+    // Risks list
+    html += `
+        <div style="margin-bottom: 12px; font-weight: 500; font-size: 14px;">🔍 What this data reveals about you:</div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+    `;
+    
+    risks.forEach(risk => {
+        html += `
+            <li style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; color: rgba(255,255,255,0.7);">
+                ⚠️ ${risk}
+            </li>
+        `;
+    });
+    
+    html += `
+        </ul>
+    `;
+    
+    // Call to action
+    html += `
+        <div style="margin-top: 16px; padding: 14px 16px; background: rgba(0,240,255,0.05); border-radius: 12px; border: 1px solid rgba(0,240,255,0.1); text-align: center; font-size: 13px; color: rgba(255,255,255,0.6);">
+            🛡️ <strong>Protect yourself:</strong> Use a VPN, block third-party cookies, and use a privacy-focused browser.
+        </div>
+    `;
+    
+    privacyResult.innerHTML = html;
+}
+
+// ============================================================
+// INITIAL LOAD: Load Privacy Warning by default
+// ============================================================
 console.log('🔒 SicuroPass loaded successfully!');
