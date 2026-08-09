@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================================
-    // EMAIL BREACH CHECK (NEW FEATURE)
+    // EMAIL BREACH CHECK (FAST & RELIABLE)
     // ============================================================
     var emailInput = document.getElementById('emailInput');
     var emailBtn = document.getElementById('emailBtn');
@@ -285,19 +285,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Validate email format
             if (!isValidEmail(email)) {
                 emailResult.innerHTML = '<span style="color:#f87171">⚠️ Please enter a valid email address.</span>';
                 return;
             }
 
-            emailResult.innerHTML = '<span style="color:rgba(255,255,255,0.5)">🔍 Searching breach database for ' + email + '...</span>';
+            emailResult.innerHTML = '<span style="color:rgba(255,255,255,0.5)">🔍 Checking ' + email + '...</span>';
             emailBtn.disabled = true;
             emailBtn.textContent = '⏳ Checking...';
 
             checkEmailBreach(email).then(function(result) {
                 if (result.error) {
-                    emailResult.innerHTML = '<span style="color:#f87171">⚠️ Error checking email. Please try again.</span>';
+                    emailResult.innerHTML = '<span style="color:#f87171">⚠️ ' + result.message + '</span>';
                 } else if (result.found && result.breaches.length > 0) {
                     var breachList = result.breaches.join(', ');
                     var breachCount = result.breaches.length;
@@ -318,19 +317,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function checkEmailBreach(email) {
-        // First get the breaches for this email using the HIBP API
-        // Note: This API may be blocked in some regions
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() {
+            controller.abort();
+        }, 10000);
+        
         return fetch('https://haveibeenpwned.com/api/v3/breachedaccount/' + encodeURIComponent(email) + '?truncateResponse=false', {
             headers: {
-                'hibp-api-key': '' // No key needed for public API
-            }
+                'Accept': 'application/json',
+                'User-Agent': 'SicuroPass-Privacy-Tool/1.0'
+            },
+            signal: controller.signal
         }).then(function(response) {
+            clearTimeout(timeoutId);
+            
             if (response.status === 404) {
                 return { found: false, breaches: [] };
             }
+            
             if (!response.ok) {
-                throw new Error('API request failed with status: ' + response.status);
+                throw new Error('API returned ' + response.status);
             }
+            
             return response.json();
         }).then(function(data) {
             if (data && data.length > 0) {
@@ -342,16 +350,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 return { found: false, breaches: [] };
             }
         }).catch(function(error) {
+            clearTimeout(timeoutId);
             console.error('Email breach check error:', error);
-            // Check for network errors (CORS, block, etc.)
-            if (error.message === 'Failed to fetch') {
-                return { error: true, message: 'Network error. The API may be blocked in your region.' };
+            
+            if (error.name === 'AbortError') {
+                return { error: true, message: 'Request timed out. Please try again.' };
             }
-            return { error: true, message: error.message };
+            if (error.message === 'Failed to fetch' || error.message.includes('CORS')) {
+                return { error: true, message: 'API blocked. Try using a VPN.' };
+            }
+            return { error: true, message: 'Error: ' + error.message };
         });
     }
 
-    // Enter key support for email input
     if (emailInput) {
         emailInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && emailBtn) emailBtn.click();
@@ -385,13 +396,11 @@ document.addEventListener('DOMContentLoaded', function() {
         var isMobile = (ua.indexOf('Mobi') !== -1 || ua.indexOf('Android') !== -1 || ua.indexOf('iPhone') !== -1);
         var device = isMobile ? 'Mobile' : 'Desktop';
 
-        // Platform fix: Show "Android" instead of "Linux" for Android devices
         var platform = navigator.platform || 'Unknown';
         if (os === 'Android' && platform === 'Linux') {
             platform = 'Android';
         }
 
-        // Get battery info (updates in background)
         if (navigator.getBattery) {
             navigator.getBattery().then(function(batt) {
                 var level = Math.round(batt.level * 100);
