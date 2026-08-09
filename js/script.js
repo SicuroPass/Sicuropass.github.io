@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', function() {
         breach: document.getElementById('breach'),
         fingerprint: document.getElementById('fingerprint'),
         username: document.getElementById('username'),
-        privacy: document.getElementById('privacy')
+        privacy: document.getElementById('privacy'),
+        email: document.getElementById('email')
     };
 
     for (var i = 0; i < navBtns.length; i++) {
@@ -267,6 +268,94 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             breachBadge.className = 'badge-hidden';
         }
+    }
+
+    // ============================================================
+    // EMAIL BREACH CHECK (NEW FEATURE)
+    // ============================================================
+    var emailInput = document.getElementById('emailInput');
+    var emailBtn = document.getElementById('emailBtn');
+    var emailResult = document.getElementById('emailResult');
+
+    if (emailBtn) {
+        emailBtn.addEventListener('click', function() {
+            var email = emailInput.value.trim();
+            if (!email) {
+                emailResult.innerHTML = '<span style="color:#f87171">⚠️ Please enter an email address to check.</span>';
+                return;
+            }
+
+            // Validate email format
+            if (!isValidEmail(email)) {
+                emailResult.innerHTML = '<span style="color:#f87171">⚠️ Please enter a valid email address.</span>';
+                return;
+            }
+
+            emailResult.innerHTML = '<span style="color:rgba(255,255,255,0.5)">🔍 Searching breach database for ' + email + '...</span>';
+            emailBtn.disabled = true;
+            emailBtn.textContent = '⏳ Checking...';
+
+            checkEmailBreach(email).then(function(result) {
+                if (result.error) {
+                    emailResult.innerHTML = '<span style="color:#f87171">⚠️ Error checking email. Please try again.</span>';
+                } else if (result.found && result.breaches.length > 0) {
+                    var breachList = result.breaches.join(', ');
+                    var breachCount = result.breaches.length;
+                    emailResult.innerHTML = '<div style="color:#f87171; font-weight:600;">⚠️ EMAIL FOUND IN ' + breachCount + ' BREACH' + (breachCount > 1 ? 'ES' : '') + '!</div><div>Your email <strong>' + email + '</strong> was found in the following breach' + (breachCount > 1 ? 'es' : '') + ':</div><div style="margin-top:8px; padding:10px; background:rgba(255,255,255,0.03); border-radius:8px; font-size:13px; color:rgba(255,255,255,0.8);">' + breachList + '</div><div style="margin-top:10px; font-size:13px; color:rgba(255,255,255,0.6);">🔐 Change your password immediately on any site where you used this email. Enable 2FA where available.</div>';
+                } else {
+                    emailResult.innerHTML = '<div style="color:#4ade80; font-weight:600;">✅ No breaches found!</div><div>Your email <strong>' + email + '</strong> has not been found in any known data breaches.</div><div style="margin-top:8px; font-size:13px; color:rgba(255,255,255,0.6);">👍 Still make sure you use strong, unique passwords everywhere!</div>';
+                }
+
+                emailBtn.disabled = false;
+                emailBtn.textContent = '🔍 Check Email';
+            });
+        });
+    }
+
+    function isValidEmail(email) {
+        var re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+
+    function checkEmailBreach(email) {
+        // First get the breaches for this email using the HIBP API
+        // Note: This API may be blocked in some regions
+        return fetch('https://haveibeenpwned.com/api/v3/breachedaccount/' + encodeURIComponent(email) + '?truncateResponse=false', {
+            headers: {
+                'hibp-api-key': '' // No key needed for public API
+            }
+        }).then(function(response) {
+            if (response.status === 404) {
+                return { found: false, breaches: [] };
+            }
+            if (!response.ok) {
+                throw new Error('API request failed with status: ' + response.status);
+            }
+            return response.json();
+        }).then(function(data) {
+            if (data && data.length > 0) {
+                var breachNames = data.map(function(breach) {
+                    return breach.Name;
+                });
+                return { found: true, breaches: breachNames };
+            } else {
+                return { found: false, breaches: [] };
+            }
+        }).catch(function(error) {
+            console.error('Email breach check error:', error);
+            // Check for network errors (CORS, block, etc.)
+            if (error.message === 'Failed to fetch') {
+                return { error: true, message: 'Network error. The API may be blocked in your region.' };
+            }
+            return { error: true, message: error.message };
+        });
+    }
+
+    // Enter key support for email input
+    if (emailInput) {
+        emailInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && emailBtn) emailBtn.click();
+        });
     }
 
     // ============================================================
