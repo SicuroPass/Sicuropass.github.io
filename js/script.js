@@ -271,7 +271,7 @@ passwordInput.addEventListener('keydown', (e) => {
 });
 
 // ============================================================
-// DIGITAL FINGERPRINT (EXPANDED)
+// DIGITAL FINGERPRINT (FULLY EXPANDED)
 // ============================================================
 const fingerprintResult = document.getElementById('fingerprintResult');
 const refreshFingerprint = document.getElementById('refreshFingerprint');
@@ -279,13 +279,13 @@ const refreshFingerprint = document.getElementById('refreshFingerprint');
 async function loadFingerprint() {
     fingerprintResult.innerHTML = `<span class="placeholder">🔄 Loading your fingerprint...</span>`;
     
-    const browserData = getBrowserFingerprint();
+    const browserData = await getBrowserFingerprint();
     const geoData = await getGeoLocation();
     
     displayFingerprint(browserData, geoData);
 }
 
-function getBrowserFingerprint() {
+async function getBrowserFingerprint() {
     const ua = navigator.userAgent;
     let os = 'Unknown';
     let browser = 'Unknown';
@@ -323,21 +323,84 @@ function getBrowserFingerprint() {
     const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|BlackBerry|IEMobile|WPDesktop/i.test(ua);
     const device = isMobile ? 'Mobile' : 'Desktop';
     
-    // Fonts (partial list of common fonts)
+    // Fonts
     const fonts = getInstalledFonts();
+    
+    // Battery (if available)
+    let battery = 'Not available';
+    let batteryLevel = '?';
+    try {
+        if (navigator.getBattery) {
+            const batt = await navigator.getBattery();
+            batteryLevel = Math.round(batt.level * 100);
+            battery = `${batteryLevel}% ${batt.charging ? '⚡ Charging' : '🔋 Not charging'}`;
+        }
+    } catch (e) {
+        battery = 'Not available';
+    }
+    
+    // Network
+    let network = 'Not available';
+    let speed = 'Not available';
+    if (navigator.connection) {
+        const conn = navigator.connection;
+        network = conn.effectiveType || 'Unknown';
+        speed = conn.downlink ? `${conn.downlink} Mbps` : 'Unknown';
+    }
+    
+    // Canvas Fingerprint
+    const canvasFP = getCanvasFingerprint();
+    
+    // Audio Fingerprint
+    const audioFP = getAudioFingerprint();
+    
+    // Plugins
+    const plugins = Array.from(navigator.plugins || []).map(p => p.name);
+    
+    // WebGL
+    let webgl = 'Not supported';
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (gl) {
+            webgl = gl.getParameter(gl.VERSION) || 'Supported';
+        }
+    } catch (e) {
+        webgl = 'Not supported';
+    }
+    
+    // Platform
+    const platform = navigator.platform || 'Unknown';
+    
+    // Time Zone
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown';
+    
+    // Touch support
+    const touchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0 ? '✅ Supported' : '❌ Not supported';
     
     return {
         os: os,
         browser: browser,
+        device: device,
         screen: `${screen.width} × ${screen.height}`,
         colorDepth: `${screen.colorDepth}-bit`,
         language: navigator.language || navigator.languages?.[0] || 'Unknown',
-        device: device,
         fonts: fonts,
         doNotTrack: navigator.doNotTrack || 'Not set',
         cookiesEnabled: navigator.cookieEnabled ? 'Enabled' : 'Disabled',
         hardwareConcurrency: navigator.hardwareConcurrency || 'Unknown',
-        deviceMemory: navigator.deviceMemory || 'Unknown'
+        deviceMemory: navigator.deviceMemory || 'Unknown',
+        battery: battery,
+        batteryLevel: batteryLevel,
+        network: network,
+        speed: speed,
+        canvasFP: canvasFP,
+        audioFP: audioFP,
+        plugins: plugins,
+        webgl: webgl,
+        platform: platform,
+        timezone: timezone,
+        touchSupport: touchSupport
     };
 }
 
@@ -359,6 +422,52 @@ function getInstalledFonts() {
     });
     
     return installed.length > 0 ? installed.join(', ') : 'None detected';
+}
+
+function getCanvasFingerprint() {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 50;
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(125, 1, 62, 20);
+        ctx.fillStyle = '#069';
+        ctx.fillText('SicuroPass', 2, 15);
+        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+        ctx.fillText('🔒', 150, 8);
+        const dataUrl = canvas.toDataURL();
+        // Shorten to show just a preview
+        return dataUrl.substring(0, 50) + '... (truncated)';
+    } catch (e) {
+        return 'Not available';
+    }
+}
+
+function getAudioFingerprint() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = ctx.createOscillator();
+        const analyser = ctx.createAnalyser();
+        oscillator.connect(analyser);
+        analyser.connect(ctx.destination);
+        oscillator.frequency.value = 440;
+        oscillator.type = 'sawtooth';
+        oscillator.start(0);
+        oscillator.stop(0.1);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(data);
+        // Create a simple hash from the audio data
+        let hash = 0;
+        for (let i = 0; i < Math.min(data.length, 50); i++) {
+            hash = (hash * 31 + data[i]) & 0xFFFFFFFF;
+        }
+        return `Audio fingerprint: ${hash.toString(16).padStart(8, '0')} (truncated)`;
+    } catch (e) {
+        return 'Not available';
+    }
 }
 
 async function getGeoLocation() {
@@ -390,41 +499,87 @@ async function getGeoLocation() {
 function displayFingerprint(browserData, geoData) {
     let html = '';
     
-    // System Information
+    // ===== SECTION 1: System Information =====
+    html += `<div style="grid-column: 1 / -1; font-size: 12px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px;">💻 System</div>`;
+    
     html += `
         <div class="fingerprint-item"><span class="label">Operating System</span><span class="value">${browserData.os}</span></div>
+        <div class="fingerprint-item"><span class="label">Platform</span><span class="value">${browserData.platform}</span></div>
         <div class="fingerprint-item"><span class="label">Browser</span><span class="value">${browserData.browser}</span></div>
         <div class="fingerprint-item"><span class="label">Device Type</span><span class="value">${browserData.device}</span></div>
         <div class="fingerprint-item"><span class="label">Screen Resolution</span><span class="value">${browserData.screen}</span></div>
         <div class="fingerprint-item"><span class="label">Color Depth</span><span class="value">${browserData.colorDepth}</span></div>
+        <div class="fingerprint-item"><span class="label">Touch Support</span><span class="value">${browserData.touchSupport}</span></div>
         <div class="fingerprint-item"><span class="label">Language</span><span class="value">${browserData.language}</span></div>
-        <div class="fingerprint-item"><span class="label">Installed Fonts</span><span class="value">${browserData.fonts}</span></div>
-        <div class="fingerprint-item"><span class="label">Do Not Track</span><span class="value">${browserData.doNotTrack}</span></div>
-        <div class="fingerprint-item"><span class="label">Cookies</span><span class="value">${browserData.cookiesEnabled}</span></div>
-        <div class="fingerprint-item"><span class="label">CPU Cores</span><span class="value">${browserData.hardwareConcurrency}</span></div>
-        <div class="fingerprint-item"><span class="label">Device Memory</span><span class="value">${browserData.deviceMemory} GB</span></div>
+        <div class="fingerprint-item"><span class="label">Time Zone</span><span class="value">${browserData.timezone}</span></div>
     `;
     
+    // ===== SECTION 2: Hardware =====
+    html += `<div style="grid-column: 1 / -1; font-size: 12px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px;">⚙️ Hardware</div>`;
+    
+    html += `
+        <div class="fingerprint-item"><span class="label">CPU Cores</span><span class="value">${browserData.hardwareConcurrency}</span></div>
+        <div class="fingerprint-item"><span class="label">Device Memory</span><span class="value">${browserData.deviceMemory} GB</span></div>
+        <div class="fingerprint-item"><span class="label">Battery</span><span class="value">${browserData.battery}</span></div>
+        <div class="fingerprint-item"><span class="label">Network</span><span class="value">${browserData.network}</span></div>
+        <div class="fingerprint-item"><span class="label">Connection Speed</span><span class="value">${browserData.speed}</span></div>
+        <div class="fingerprint-item"><span class="label">WebGL</span><span class="value">${browserData.webgl}</span></div>
+    `;
+    
+    // ===== SECTION 3: Fingerprinting =====
+    html += `<div style="grid-column: 1 / -1; font-size: 12px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px;">🎨 Advanced Fingerprinting</div>`;
+    
+    html += `
+        <div class="fingerprint-item"><span class="label">Installed Fonts</span><span class="value">${browserData.fonts}</span></div>
+        <div class="fingerprint-item"><span class="label">Canvas ID</span><span class="value" style="font-size: 11px;">${browserData.canvasFP}</span></div>
+        <div class="fingerprint-item"><span class="label">Audio ID</span><span class="value" style="font-size: 11px;">${browserData.audioFP}</span></div>
+        <div class="fingerprint-item"><span class="label">Browser Plugins</span><span class="value" style="font-size: 11px;">${browserData.plugins.length > 0 ? browserData.plugins.join(', ') : 'None'}</span></div>
+    `;
+    
+    // ===== SECTION 4: Privacy Settings =====
+    html += `<div style="grid-column: 1 / -1; font-size: 12px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px;">🛡️ Privacy</div>`;
+    
+    html += `
+        <div class="fingerprint-item"><span class="label">Do Not Track</span><span class="value">${browserData.doNotTrack}</span></div>
+        <div class="fingerprint-item"><span class="label">Cookies</span><span class="value">${browserData.cookiesEnabled}</span></div>
+    `;
+    
+    // ===== SECTION 5: Geolocation =====
     if (geoData) {
+        html += `<div style="grid-column: 1 / -1; font-size: 12px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px;">🌍 Network</div>`;
+        
         html += `
             <div class="fingerprint-item"><span class="label">IP Address</span><span class="value">${geoData.ip}</span></div>
             <div class="fingerprint-item"><span class="label">Country</span><span class="value">${geoData.country}</span></div>
             <div class="fingerprint-item"><span class="label">City</span><span class="value">${geoData.city}</span></div>
             <div class="fingerprint-item"><span class="label">Region</span><span class="value">${geoData.region}</span></div>
             <div class="fingerprint-item"><span class="label">ISP</span><span class="value">${geoData.isp}</span></div>
-            <div class="fingerprint-item"><span class="label">Time Zone</span><span class="value">${geoData.timezone}</span></div>
+            <div class="fingerprint-item"><span class="label">Time Zone (API)</span><span class="value">${geoData.timezone}</span></div>
         `;
     } else {
         html += `
-            <div class="fingerprint-item" style="grid-column: 1 / -1; justify-content: center; padding: 16px 0; border-bottom: none;">
+            <div class="fingerprint-item" style="grid-column: 1 / -1; justify-content: center; padding: 12px 0; border-bottom: none;">
                 <span style="color: rgba(255,255,255,0.3); font-style: italic; text-align: center;">
-                    🌍 IP geolocation is not available in your region.<br>
-                    <span style="font-size: 12px;">Your browser data above still works.</span>
+                    🌍 IP geolocation is not available in your region.
                 </span>
             </div>
         `;
     }
     
+    // ===== SECTION 6: What Websites CANNOT See (Educational) =====
+    html += `
+        <div style="grid-column: 1 / -1; margin-top: 16px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 13px; color: rgba(255,255,255,0.4); text-align: center; line-height: 1.6;">
+                🛡️ <strong>Websites CANNOT see:</strong> Your email, phone number, exact device model, or saved passwords. 
+                These are private and stored securely on your device! 
+                <span style="display: block; margin-top: 4px; font-size: 12px; color: rgba(255,255,255,0.25);">
+                    The data above is everything a website can see about you.
+                </span>
+            </div>
+        </div>
+    `;
+    
+    // ===== SECTION 7: Privacy Note =====
     html += `
         <div class="fingerprint-note">
             ⚠️ This is what every website can see about you. Use a VPN or privacy tools to protect your data.
@@ -596,7 +751,7 @@ usernameInput.addEventListener('keydown', (e) => {
 });
 
 // ============================================================
-// PRIVACY WARNING (NEW FEATURE)
+// PRIVACY WARNING
 // ============================================================
 const privacyResult = document.getElementById('privacyResult');
 
@@ -610,111 +765,4 @@ function loadPrivacyWarning() {
     
     // Calculate risk level
     let riskScore = 0;
-    const risks = [];
-    
-    // 1. Browser fingerprinting
-    riskScore += 20;
-    risks.push('Your browser sends a unique fingerprint to every website you visit');
-    
-    // 2. Device type
-    if (isMobile) {
-        riskScore += 10;
-        risks.push('Mobile devices share more location data than desktop computers');
-    }
-    
-    // 3. Language/region
-    if (language && !language.startsWith('en')) {
-        riskScore += 10;
-        risks.push('Your language reveals your geographic region to websites');
-    }
-    
-    // 4. Screen resolution
-    if (screenRes && screenRes !== '0 × 0') {
-        riskScore += 10;
-        risks.push('Your screen size can be used to identify your specific device model');
-    }
-    
-    // 5. Installed fonts
-    const fonts = getInstalledFonts();
-    if (fonts && fonts !== 'None detected' && fonts.split(',').length > 3) {
-        riskScore += 15;
-        risks.push('Your installed fonts create a unique fingerprint (like a digital DNA)');
-    }
-    
-    // 6. Do Not Track (if enabled)
-    if (navigator.doNotTrack !== '1') {
-        riskScore += 10;
-        risks.push('You have not enabled "Do Not Track" – advertisers can track you more easily');
-    }
-    
-    // 7. Cookies
-    if (navigator.cookieEnabled) {
-        riskScore += 10;
-        risks.push('Cookies are enabled – websites can store tracking data on your device');
-    }
-    
-    // Cap risk at 100
-    riskScore = Math.min(100, riskScore);
-    
-    // Determine risk level
-    let level, color, icon;
-    if (riskScore >= 80) { level = 'VERY HIGH'; color = '#f87171'; icon = '🔴'; }
-    else if (riskScore >= 60) { level = 'HIGH'; color = '#fbbf24'; icon = '🟠'; }
-    else if (riskScore >= 40) { level = 'MEDIUM'; color = '#fbbf24'; icon = '🟡'; }
-    else { level = 'LOW'; color = '#4ade80'; icon = '🟢'; }
-    
-    // Build HTML
-    let html = `
-        <div style="margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); padding: 16px 20px; border-radius: 16px; border: 1px solid ${color}33;">
-                <span style="font-size: 24px; font-weight: 700;">${icon} Risk Level: <span style="color: ${color};">${level}</span></span>
-                <span style="font-size: 16px; color: rgba(255,255,255,0.4);">Score: ${riskScore}/100</span>
-            </div>
-        </div>
-    `;
-    
-    // Your fingerprint summary
-    html += `
-        <div style="margin-bottom: 16px; padding: 14px 16px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 6px;">YOUR FINGERPRINT SUMMARY</div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 13px;">
-                <span>🖥️ ${browser} on ${os}</span>
-                <span>📱 ${isMobile ? 'Mobile' : 'Desktop'}</span>
-                <span>🌐 ${language}</span>
-                <span>📐 ${screenRes}</span>
-            </div>
-        </div>
-    `;
-    
-    // Risks list
-    html += `
-        <div style="margin-bottom: 12px; font-weight: 500; font-size: 14px;">🔍 What this data reveals about you:</div>
-        <ul style="list-style: none; padding: 0; margin: 0;">
-    `;
-    
-    risks.forEach(risk => {
-        html += `
-            <li style="padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; color: rgba(255,255,255,0.7);">
-                ⚠️ ${risk}
-            </li>
-        `;
-    });
-    
-    html += `
-        </ul>
-    `;
-    
-    // Call to action
-    html += `
-        <div style="margin-top: 16px; padding: 14px 16px; background: rgba(0,240,255,0.05); border-radius: 12px; border: 1px solid rgba(0,240,255,0.1); text-align: center; font-size: 13px; color: rgba(255,255,255,0.6);">
-            🛡️ <strong>Protect yourself:</strong> Use a VPN, block third-party cookies, and use a privacy-focused browser.
-        </div>
-    `;
-    
-    privacyResult.innerHTML = html;
-}
-
-// ============================================================
-// INITIAL LOAD: Load Privacy Warning by default
-// ============================================================
-console.log('🔒 SicuroPass loaded successfully!');
+    const
